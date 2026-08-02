@@ -98,11 +98,11 @@ function buildMessage(order: any) {
 
   return `Olá ${order.nome_cliente}, seu pedido #${order.numero} na Boali São Carlos foi recebido!
 
-Prato: ${formatProductsList(produtos, "-")}
-Suco: ${formatExtrasList(sucos, "Nenhum")}
-Sobremesa: ${formatExtrasList(sobremesas, "Nenhuma")}
-Pagamento: ${pagamento}
-Total: ${brl(total)}
+*Prato:* ${formatProductsList(produtos, "-")}
+*Suco:* ${formatExtrasList(sucos, "Nenhum")}
+*Sobremesa:* ${formatExtrasList(sobremesas, "Nenhuma")}
+*Pagamento:* ${pagamento}
+*Total:* ${brl(total)}
 
 Retirada: ${formatDate(order.time_windows.data)} até ${deadline.time}`;
 }

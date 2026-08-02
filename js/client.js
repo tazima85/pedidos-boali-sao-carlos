@@ -223,7 +223,7 @@ document.querySelectorAll(".payment-option").forEach((btn) => {
     if (state.paymentMethod === "pix") {
       els.paymentDetail.style.display = "block";
       els.paymentDetail.innerHTML = state.pixKey
-        ? `Faça seu pix antes de finalizar o pedido e guarde o comprovante. Chave Pix: <code>${escapeHtml(state.pixKey)}</code>`
+        ? `Após confirmar seu pedido faça o pix e guarde o comprovante. Chave pix <code>${escapeHtml(state.pixKey)}</code>`
         : "Chave Pix ainda não configurada pelo admin.";
     } else {
       els.paymentDetail.style.display = "block";
