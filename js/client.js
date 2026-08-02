@@ -18,14 +18,16 @@ if (logoImg.complete && logoImg.naturalWidth === 0) {
 }
 
 // ---------- State ----------
+// selectedSucos/selectedSobremesas: Map<itemId, { item, qty }> — a pedido
+// pode ter vários sucos/sobremesas, inclusive repetindo o mesmo item.
 const state = {
   products: [],
   sucos: [],
   sobremesas: [],
   timeWindows: [],
   selectedProduct: null,
-  selectedSuco: null,
-  selectedSobremesa: null,
+  selectedSucos: new Map(),
+  selectedSobremesas: new Map(),
   paymentMethod: null,
   pixKey: "",
   activeWindow: null,
@@ -185,37 +187,40 @@ function renderProducts() {
 function renderExtras(kind, items, container) {
   container.innerHTML = "";
 
-  const noneCard = document.createElement("button");
-  noneCard.type = "button";
-  noneCard.className = "pick-card pick-card--none";
-  noneCard.textContent = "Nenhum";
-  const isNoneSelected = kind === "sucos" ? !state.selectedSuco : !state.selectedSobremesa;
-  if (isNoneSelected) noneCard.classList.add("selected");
-  noneCard.addEventListener("click", () => {
-    if (kind === "sucos") state.selectedSuco = null;
-    else state.selectedSobremesa = null;
-    renderExtras(kind, items, container);
-    renderSummary();
-  });
-  container.appendChild(noneCard);
+  if (items.length === 0) {
+    container.innerHTML = '<p class="empty-state">Nenhuma opção disponível.</p>';
+    return;
+  }
 
-  if (items.length === 0) return;
+  const selectedMap = kind === "sucos" ? state.selectedSucos : state.selectedSobremesas;
 
   items.forEach((item) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "pick-card";
+    const qty = selectedMap.get(item.id)?.qty || 0;
+    const card = document.createElement("div");
+    card.className = "pick-card qty-card" + (qty > 0 ? " selected" : "");
     card.innerHTML = `
       <span class="pick-card__nome">${escapeHtml(item.nome)}</span>
       ${item.preco != null ? `<span class="pick-card__preco">${brl(item.preco)}</span>` : ""}
+      <div class="qty-control">
+        <button type="button" class="qty-btn" data-action="dec" aria-label="Diminuir quantidade de ${escapeHtml(item.nome)}">−</button>
+        <span class="qty-value">${qty}</span>
+        <button type="button" class="qty-btn" data-action="inc" aria-label="Aumentar quantidade de ${escapeHtml(item.nome)}">+</button>
+      </div>
     `;
-    const selected = kind === "sucos" ? state.selectedSuco?.id === item.id : state.selectedSobremesa?.id === item.id;
-    if (selected) card.classList.add("selected");
-    card.addEventListener("click", () => {
-      if (kind === "sucos") state.selectedSuco = item;
-      else state.selectedSobremesa = item;
+    card.querySelector('[data-action="inc"]').addEventListener("click", () => {
+      const current = selectedMap.get(item.id)?.qty || 0;
+      selectedMap.set(item.id, { item, qty: current + 1 });
       renderExtras(kind, items, container);
       renderSummary();
+      updateSubmitState();
+    });
+    card.querySelector('[data-action="dec"]').addEventListener("click", () => {
+      const current = selectedMap.get(item.id)?.qty || 0;
+      if (current <= 1) selectedMap.delete(item.id);
+      else selectedMap.set(item.id, { item, qty: current - 1 });
+      renderExtras(kind, items, container);
+      renderSummary();
+      updateSubmitState();
     });
     container.appendChild(card);
   });
@@ -249,22 +254,37 @@ document.querySelectorAll(".payment-option").forEach((btn) => {
 });
 
 // ---------- Summary ----------
+function extrasTotal(map) {
+  let total = 0;
+  map.forEach(({ item, qty }) => {
+    total += Number(item.preco || 0) * qty;
+  });
+  return total;
+}
+
+function extrasSummaryHtml(map, emptyLabel) {
+  if (map.size === 0) return emptyLabel;
+  return Array.from(map.values())
+    .map(({ item, qty }) => {
+      const qtyLabel = qty > 1 ? ` x${qty}` : "";
+      const priceLabel = item.preco != null ? ` — ${brl(item.preco * qty)}` : "";
+      return `${escapeHtml(item.nome)}${qtyLabel}${priceLabel}`;
+    })
+    .join("<br>");
+}
+
 function renderSummary() {
   els.summaryProduct.textContent = state.selectedProduct
     ? `${state.selectedProduct.nome}${state.selectedProduct.preco != null ? ` — ${brl(state.selectedProduct.preco)}` : ""}`
     : "—";
-  els.summarySuco.textContent = state.selectedSuco
-    ? `${state.selectedSuco.nome}${state.selectedSuco.preco != null ? ` — ${brl(state.selectedSuco.preco)}` : ""}`
-    : "Nenhum";
-  els.summarySobremesa.textContent = state.selectedSobremesa
-    ? `${state.selectedSobremesa.nome}${state.selectedSobremesa.preco != null ? ` — ${brl(state.selectedSobremesa.preco)}` : ""}`
-    : "Nenhuma";
+  els.summarySuco.innerHTML = extrasSummaryHtml(state.selectedSucos, "Nenhum");
+  els.summarySobremesa.innerHTML = extrasSummaryHtml(state.selectedSobremesas, "Nenhuma");
   els.summaryPayment.textContent = state.paymentMethod === "pix" ? "Pix" : state.paymentMethod === "cartao" ? "Cartão" : "—";
 
   const total =
     Number(state.selectedProduct?.preco || 0) +
-    Number(state.selectedSuco?.preco || 0) +
-    Number(state.selectedSobremesa?.preco || 0);
+    extrasTotal(state.selectedSucos) +
+    extrasTotal(state.selectedSobremesas);
   els.summaryTotal.textContent = brl(total) || "R$ 0,00";
 }
 
@@ -312,33 +332,53 @@ els.form.addEventListener("submit", async (e) => {
   els.submitBtn.disabled = true;
   els.submitBtn.textContent = "Enviando...";
 
-  const { error } = await supabase.from("orders").insert({
-    nome_cliente: els.nome.value.trim(),
-    whatsapp_cliente: els.whatsapp.value.trim(),
-    product_id: state.selectedProduct.id,
-    suco_id: state.selectedSuco?.id || null,
-    sobremesa_id: state.selectedSobremesa?.id || null,
-    forma_pagamento: state.paymentMethod,
-    time_window_id: state.activeWindow.id,
-  });
-
-  els.submitBtn.textContent = "Confirmar pedido";
+  const { data: orderData, error } = await supabase
+    .from("orders")
+    .insert({
+      nome_cliente: els.nome.value.trim(),
+      whatsapp_cliente: els.whatsapp.value.trim(),
+      product_id: state.selectedProduct.id,
+      forma_pagamento: state.paymentMethod,
+      time_window_id: state.activeWindow.id,
+    })
+    .select()
+    .single();
 
   if (error) {
     console.error(error);
+    els.submitBtn.textContent = "Confirmar pedido";
     els.formMsg.textContent = "Erro ao enviar pedido. Tente novamente.";
     els.formMsg.className = "form-msg form-msg--error";
     updateSubmitState();
     return;
   }
 
+  const extraRows = [
+    ...Array.from(state.selectedSucos.values()),
+    ...Array.from(state.selectedSobremesas.values()),
+  ].map(({ item, qty }) => ({ order_id: orderData.id, extra_item_id: item.id, quantidade: qty }));
+
+  if (extraRows.length) {
+    const { error: extrasError } = await supabase.from("order_extra_items").insert(extraRows);
+    if (extrasError) {
+      console.error(extrasError);
+      await supabase.from("orders").delete().eq("id", orderData.id);
+      els.submitBtn.textContent = "Confirmar pedido";
+      els.formMsg.textContent = "Erro ao enviar pedido. Tente novamente.";
+      els.formMsg.className = "form-msg form-msg--error";
+      updateSubmitState();
+      return;
+    }
+  }
+
+  els.submitBtn.textContent = "Confirmar pedido";
   els.formMsg.textContent = "Pedido enviado com sucesso!";
   els.formMsg.className = "form-msg form-msg--success";
 
   // Reset selections for a possible new order, keep window/products loaded
   state.selectedProduct = null;
-  state.selectedSuco = null;
-  state.selectedSobremesa = null;
+  state.selectedSucos = new Map();
+  state.selectedSobremesas = new Map();
   state.paymentMethod = null;
   els.form.reset();
   document.querySelectorAll(".payment-option").forEach((b) => b.classList.remove("selected"));

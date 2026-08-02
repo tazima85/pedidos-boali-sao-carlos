@@ -338,8 +338,13 @@ const btnPrint = document.getElementById("btn-print");
 let currentOrders = [];
 let currentWindowLabel = "";
 
-function shortOrderId(id) {
-  return id ? id.slice(0, 8).toUpperCase() : "—";
+function orderExtras(o, categoria) {
+  return (o.order_extra_items || []).filter((oi) => oi.extra_items?.categoria === categoria);
+}
+
+function formatExtrasList(list) {
+  if (!list.length) return "—";
+  return list.map((oi) => `${escapeHtml(oi.extra_items.nome)}${oi.quantidade > 1 ? ` x${oi.quantidade}` : ""}`).join(", ");
 }
 
 async function loadConsolidadoWindows() {
@@ -375,11 +380,10 @@ async function loadConsolidadoOrders() {
     .select(`
       *,
       products(nome, preco),
-      suco:extra_items!orders_suco_id_fkey(nome, preco),
-      sobremesa:extra_items!orders_sobremesa_id_fkey(nome, preco)
+      order_extra_items(quantidade, extra_items(nome, preco, categoria))
     `)
     .eq("time_window_id", windowId)
-    .order("criado_em", { ascending: true });
+    .order("numero", { ascending: true });
 
   if (error) {
     console.error(error);
@@ -401,12 +405,12 @@ function renderConsolidadoTable() {
   currentOrders.forEach((o) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${shortOrderId(o.id)}</td>
+      <td>${o.numero}</td>
       <td>${escapeHtml(o.nome_cliente)}</td>
       <td>${escapeHtml(o.whatsapp_cliente)}</td>
       <td>${escapeHtml(o.products?.nome) || "—"}</td>
-      <td>${escapeHtml(o.suco?.nome) || "—"}</td>
-      <td>${escapeHtml(o.sobremesa?.nome) || "—"}</td>
+      <td>${formatExtrasList(orderExtras(o, "suco"))}</td>
+      <td>${formatExtrasList(orderExtras(o, "sobremesa"))}</td>
       <td>${o.forma_pagamento === "pix" ? "Pix" : "Cartão"}</td>
       <td>${formatDateTime(o.criado_em)}</td>
     `;
@@ -424,12 +428,16 @@ function renderConsolidadoStats() {
     const pratoNomeLabel = o.products?.nome || "—";
     byPrato[pratoNomeLabel] = (byPrato[pratoNomeLabel] || 0) + 1;
 
-    if (o.suco?.nome) byExtra[o.suco.nome] = (byExtra[o.suco.nome] || 0) + 1;
-    if (o.sobremesa?.nome) byExtra[o.sobremesa.nome] = (byExtra[o.sobremesa.nome] || 0) + 1;
+    let extrasTotal = 0;
+    (o.order_extra_items || []).forEach((oi) => {
+      if (!oi.extra_items) return;
+      byExtra[oi.extra_items.nome] = (byExtra[oi.extra_items.nome] || 0) + oi.quantidade;
+      extrasTotal += Number(oi.extra_items.preco || 0) * oi.quantidade;
+    });
 
     byPagamento[o.forma_pagamento] = (byPagamento[o.forma_pagamento] || 0) + 1;
 
-    total += Number(o.products?.preco || 0) + Number(o.suco?.preco || 0) + Number(o.sobremesa?.preco || 0);
+    total += Number(o.products?.preco || 0) + extrasTotal;
   });
 
   function listHtml(obj, emptyLabel) {
@@ -475,12 +483,12 @@ btnExportCsv.addEventListener("click", () => {
   }
   const headers = ["ID", "Nome", "WhatsApp", "Prato", "Suco", "Sobremesa", "Pagamento", "Enviado em"];
   const rows = currentOrders.map((o) => [
-    shortOrderId(o.id),
+    o.numero,
     o.nome_cliente,
     o.whatsapp_cliente,
     o.products?.nome || "",
-    o.suco?.nome || "",
-    o.sobremesa?.nome || "",
+    orderExtras(o, "suco").map((oi) => `${oi.extra_items.nome}${oi.quantidade > 1 ? ` x${oi.quantidade}` : ""}`).join(", "),
+    orderExtras(o, "sobremesa").map((oi) => `${oi.extra_items.nome}${oi.quantidade > 1 ? ` x${oi.quantidade}` : ""}`).join(", "),
     o.forma_pagamento === "pix" ? "Pix" : "Cartão",
     formatDateTime(o.criado_em),
   ]);

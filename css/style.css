@@ -183,6 +183,42 @@ a { color: var(--color-primary-dark); }
   font-style: italic;
 }
 
+.qty-card {
+  cursor: default;
+}
+
+.qty-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary);
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qty-btn:hover {
+  background: var(--color-cream);
+}
+
+.qty-value {
+  min-width: 1.2rem;
+  text-align: center;
+  font-weight: 700;
+}
+
 /* ---------- Forms ---------- */
 label {
   display: block;

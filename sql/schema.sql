@@ -36,16 +36,30 @@ create table if not exists time_windows (
 );
 
 -- ---------- orders ----------
+-- "numero" é um código sequencial curto (iniciando em 100) para identificar
+-- o pedido de forma legível no admin e na retirada — o "id" uuid continua
+-- sendo a chave primária real.
+create sequence if not exists orders_numero_seq start with 100;
+
 create table if not exists orders (
   id                uuid primary key default gen_random_uuid(),
+  numero            integer not null default nextval('orders_numero_seq') unique,
   criado_em         timestamptz not null default now(),
   nome_cliente      text not null,
   whatsapp_cliente  text not null,
   product_id        uuid not null references products(id),
-  suco_id           uuid references extra_items(id),
-  sobremesa_id      uuid references extra_items(id),
   forma_pagamento   text not null check (forma_pagamento in ('pix', 'cartao')),
   time_window_id    uuid not null references time_windows(id)
+);
+
+-- ---------- order_extra_items (sucos/sobremesas escolhidos em cada pedido) ----------
+-- Um pedido pode ter vários sucos/sobremesas, inclusive repetindo o mesmo
+-- item (nesse caso soma-se a quantidade em vez de criar outra linha).
+create table if not exists order_extra_items (
+  id             uuid primary key default gen_random_uuid(),
+  order_id       uuid not null references orders(id) on delete cascade,
+  extra_item_id  uuid not null references extra_items(id),
+  quantidade     integer not null default 1 check (quantidade > 0)
 );
 
 -- ---------- config (linha única com a chave Pix) ----------
@@ -67,11 +81,12 @@ on conflict (id) do nothing;
 -- ao piloto (nome e WhatsApp do cliente).
 -- =========================================================
 
-alter table products     enable row level security;
-alter table extra_items  enable row level security;
-alter table time_windows enable row level security;
-alter table orders       enable row level security;
-alter table config       enable row level security;
+alter table products          enable row level security;
+alter table extra_items       enable row level security;
+alter table time_windows      enable row level security;
+alter table orders            enable row level security;
+alter table order_extra_items enable row level security;
+alter table config            enable row level security;
 
 -- products
 create policy "products_select" on products for select using (true);
@@ -96,6 +111,12 @@ create policy "orders_select" on orders for select using (true);
 create policy "orders_insert" on orders for insert with check (true);
 create policy "orders_update" on orders for update using (true) with check (true);
 create policy "orders_delete" on orders for delete using (true);
+
+-- order_extra_items
+create policy "order_extra_items_select" on order_extra_items for select using (true);
+create policy "order_extra_items_insert" on order_extra_items for insert with check (true);
+create policy "order_extra_items_update" on order_extra_items for update using (true) with check (true);
+create policy "order_extra_items_delete" on order_extra_items for delete using (true);
 
 -- config
 create policy "config_select" on config for select using (true);

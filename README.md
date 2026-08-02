@@ -16,8 +16,14 @@ GitHub Pages.
 1. Crie uma conta e um projeto gratuito em [supabase.com](https://supabase.com).
 2. No painel do projeto, abra **SQL Editor** → **New query**, cole o conteúdo de
    [`sql/schema.sql`](sql/schema.sql) e rode. Isso cria as tabelas `products`,
-   `extra_items`, `time_windows`, `orders`, `config` e as políticas de RLS
-   (Row Level Security) que liberam o acesso necessário para o piloto.
+   `extra_items`, `time_windows`, `orders`, `order_extra_items`, `config` e as
+   políticas de RLS (Row Level Security) que liberam o acesso necessário para
+   o piloto.
+
+   Se o projeto Supabase já existia antes de sucos/sobremesas múltiplos e do
+   número sequencial de pedido, rode também
+   [`sql/migration_002_numero_e_multiplos_extras.sql`](sql/migration_002_numero_e_multiplos_extras.sql)
+   uma única vez — ele migra os pedidos já salvos sem perder dados.
 3. Em **Project Settings → API**, copie:
    - **Project URL**
    - **anon public key**
@@ -93,14 +99,18 @@ js/client.js             lógica da página do cliente
 assets/logo.png         logo (adicione o arquivo)
 admin/index.html        painel administrativo
 admin/js/admin.js       lógica do admin (CRUD + consolidado)
-sql/schema.sql           tabelas + RLS para rodar no Supabase
+sql/schema.sql                              tabelas + RLS para rodar no Supabase (projeto novo)
+sql/migration_002_numero_e_multiplos_extras.sql  migração para projetos já existentes
 ```
 
 ## Modelo de dados
 
 Ver [`sql/schema.sql`](sql/schema.sql) — tabelas `products`, `extra_items`
 (sucos e sobremesas, diferenciados pelo campo `categoria`), `time_windows`,
-`orders` e `config` (linha única com `pix_key`).
+`orders` (com `numero`, um contador sequencial legível começando em 100),
+`order_extra_items` (sucos/sobremesas escolhidos em cada pedido, com
+`quantidade` — um pedido pode ter vários itens, inclusive repetido) e
+`config` (linha única com `pix_key`).
 
 ## Regras de negócio implementadas
 
@@ -109,8 +119,10 @@ Ver [`sql/schema.sql`](sql/schema.sql) — tabelas `products`, `extra_items`
   cliente. Fora da janela, o botão de enviar fica desabilitado e o banner
   mostra a próxima janela cadastrada (ou "pedidos fechados no momento", se não
   houver nenhuma futura).
-- Nome, WhatsApp, prato e forma de pagamento são obrigatórios; suco e
-  sobremesa são opcionais ("Nenhum"/"Nenhuma").
+- Nome, WhatsApp (validado como celular com DDD, 11 dígitos), prato e forma
+  de pagamento são obrigatórios; suco e sobremesa são opcionais, com seleção
+  múltipla e quantidade por item (o mesmo suco pode ser pedido mais de uma
+  vez, por exemplo).
 - Sem controle de estoque e sem limite de pedidos por cliente/janela.
 - Pix mostra a chave cadastrada em `/admin/`; Cartão mostra aviso de que o
   pagamento é combinado na entrega/retirada — nenhum dos dois integra gateway
