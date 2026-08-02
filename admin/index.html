@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — Pedidos Boali São Carlos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<header class="app-header">
+  <img src="../assets/logo.png" alt="Logo Boali" class="app-header__logo" id="logo-img" />
+  <div class="app-header__titles">
+    <h1>Pedidos Boali São Carlos</h1>
+    <p>Painel administrativo — Piloto Alunos Velocity</p>
+  </div>
+  <nav class="app-header__nav">
+    <a href="../index.html">Ver página do cliente</a>
+  </nav>
+</header>
+
+<main class="page">
+
+  <div id="config-warning" class="banner banner--closed" style="display:none;">
+    Supabase não configurado. Edite <code>js/config.js</code> na raiz do projeto com a URL e a anon key do seu projeto.
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="pratos">Pratos</button>
+    <button class="tab-btn" data-tab="extras">Sucos &amp; Sobremesas</button>
+    <button class="tab-btn" data-tab="janelas">Janelas de horário</button>
+    <button class="tab-btn" data-tab="pix">Chave Pix</button>
+    <button class="tab-btn" data-tab="consolidado">Pedido consolidado</button>
+  </nav>
+
+  <!-- ---------- Pratos ---------- -->
+  <section id="tab-pratos" class="tab-panel active">
+    <div class="admin-card">
+      <h2>Novo prato</h2>
+      <form id="form-prato" class="form-grid">
+        <div>
+          <label for="prato-nome">Nome</label>
+          <input type="text" id="prato-nome" required />
+        </div>
+        <div>
+          <label for="prato-preco">Preço (R$)</label>
+          <input type="number" id="prato-preco" step="0.01" min="0" />
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label for="prato-desc">Descrição</label>
+          <textarea id="prato-desc" rows="2"></textarea>
+        </div>
+        <div style="grid-column: 1 / -1; margin-top: 0.75rem;">
+          <button type="submit" class="btn btn-primary" style="width:auto;">Adicionar prato</button>
+          <button type="button" id="prato-cancel-edit" class="btn btn-secondary btn-small" style="display:none;">Cancelar edição</button>
+        </div>
+      </form>
+    </div>
+    <div class="admin-card">
+      <h2>Pratos cadastrados</h2>
+      <div class="table-wrap">
+        <table id="table-pratos">
+          <thead><tr><th>Nome</th><th>Descrição</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- Sucos & Sobremesas ---------- -->
+  <section id="tab-extras" class="tab-panel">
+    <div class="admin-card">
+      <h2>Novo item (suco ou sobremesa)</h2>
+      <form id="form-extra" class="form-grid">
+        <div>
+          <label for="extra-categoria">Categoria</label>
+          <select id="extra-categoria" required>
+            <option value="suco">Suco</option>
+            <option value="sobremesa">Sobremesa</option>
+          </select>
+        </div>
+        <div>
+          <label for="extra-nome">Nome</label>
+          <input type="text" id="extra-nome" required />
+        </div>
+        <div>
+          <label for="extra-preco">Preço (R$)</label>
+          <input type="number" id="extra-preco" step="0.01" min="0" />
+        </div>
+        <div style="grid-column: 1 / -1; margin-top: 0.75rem;">
+          <button type="submit" class="btn btn-primary" style="width:auto;">Adicionar item</button>
+          <button type="button" id="extra-cancel-edit" class="btn btn-secondary btn-small" style="display:none;">Cancelar edição</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-card">
+      <h2>Sucos</h2>
+      <div class="table-wrap">
+        <table id="table-sucos">
+          <thead><tr><th>Nome</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h2>Sobremesas</h2>
+      <div class="table-wrap">
+        <table id="table-sobremesas">
+          <thead><tr><th>Nome</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- Janelas de horário ---------- -->
+  <section id="tab-janelas" class="tab-panel">
+    <div class="admin-card">
+      <h2>Nova janela de horário</h2>
+      <form id="form-janela" class="form-grid">
+        <div>
+          <label for="janela-data">Data</label>
+          <input type="date" id="janela-data" required />
+        </div>
+        <div>
+          <label for="janela-inicio">Hora início</label>
+          <input type="time" id="janela-inicio" required />
+        </div>
+        <div>
+          <label for="janela-fim">Hora fim</label>
+          <input type="time" id="janela-fim" required />
+        </div>
+        <div style="grid-column: 1 / -1; margin-top: 0.75rem;">
+          <button type="submit" class="btn btn-primary" style="width:auto;">Adicionar janela</button>
+          <button type="button" id="janela-cancel-edit" class="btn btn-secondary btn-small" style="display:none;">Cancelar edição</button>
+        </div>
+      </form>
+    </div>
+    <div class="admin-card">
+      <h2>Janelas cadastradas</h2>
+      <div class="table-wrap">
+        <table id="table-janelas">
+          <thead><tr><th>Data</th><th>Início</th><th>Fim</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- Chave Pix ---------- -->
+  <section id="tab-pix" class="tab-panel">
+    <div class="admin-card">
+      <h2>Chave Pix</h2>
+      <p class="hint" style="margin-top:-0.4rem;">Exibida ao cliente quando ele escolher pagamento via Pix.</p>
+      <form id="form-pix" class="form-grid form-grid--wide">
+        <div>
+          <label for="pix-key">Chave Pix</label>
+          <input type="text" id="pix-key" placeholder="ex: email@dominio.com, CPF/CNPJ, telefone ou chave aleatória" />
+        </div>
+        <div style="margin-top: 0.5rem;">
+          <button type="submit" class="btn btn-primary" style="width:auto;">Salvar chave Pix</button>
+        </div>
+      </form>
+      <div id="pix-msg" class="form-msg"></div>
+    </div>
+  </section>
+
+  <!-- ---------- Pedido consolidado ---------- -->
+  <section id="tab-consolidado" class="tab-panel">
+    <div class="admin-card">
+      <h2>Pedido consolidado</h2>
+      <div class="toolbar">
+        <div style="flex:1; min-width:220px;">
+          <label for="consolidado-janela">Janela de horário</label>
+          <select id="consolidado-janela"></select>
+        </div>
+        <button type="button" id="btn-export-csv" class="btn btn-secondary btn-small">Exportar CSV</button>
+      </div>
+
+      <div class="stat-grid" id="consolidado-stats"></div>
+
+      <h3 style="margin-top:1.5rem;">Pedidos da janela</h3>
+      <div class="table-wrap">
+        <table id="table-consolidado">
+          <thead><tr><th>Cliente</th><th>WhatsApp</th><th>Prato</th><th>Suco</th><th>Sobremesa</th><th>Pagamento</th><th>Enviado em</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<p class="footer-note">Pedidos Boali São Carlos — Painel administrativo</p>
+
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>
