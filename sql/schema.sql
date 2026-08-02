@@ -47,9 +47,18 @@ create table if not exists orders (
   criado_em         timestamptz not null default now(),
   nome_cliente      text not null,
   whatsapp_cliente  text not null,
-  product_id        uuid not null references products(id),
   forma_pagamento   text not null check (forma_pagamento in ('pix', 'cartao')),
   time_window_id    uuid not null references time_windows(id)
+);
+
+-- ---------- order_products (pratos escolhidos em cada pedido) ----------
+-- Um pedido pode ter vários pratos, inclusive repetindo o mesmo prato
+-- (nesse caso soma-se a quantidade em vez de criar outra linha).
+create table if not exists order_products (
+  id          uuid primary key default gen_random_uuid(),
+  order_id    uuid not null references orders(id) on delete cascade,
+  product_id  uuid not null references products(id),
+  quantidade  integer not null default 1 check (quantidade > 0)
 );
 
 -- ---------- order_extra_items (sucos/sobremesas escolhidos em cada pedido) ----------
@@ -85,6 +94,7 @@ alter table products          enable row level security;
 alter table extra_items       enable row level security;
 alter table time_windows      enable row level security;
 alter table orders            enable row level security;
+alter table order_products    enable row level security;
 alter table order_extra_items enable row level security;
 alter table config            enable row level security;
 
@@ -111,6 +121,12 @@ create policy "orders_select" on orders for select using (true);
 create policy "orders_insert" on orders for insert with check (true);
 create policy "orders_update" on orders for update using (true) with check (true);
 create policy "orders_delete" on orders for delete using (true);
+
+-- order_products
+create policy "order_products_select" on order_products for select using (true);
+create policy "order_products_insert" on order_products for insert with check (true);
+create policy "order_products_update" on order_products for update using (true) with check (true);
+create policy "order_products_delete" on order_products for delete using (true);
 
 -- order_extra_items
 create policy "order_extra_items_select" on order_extra_items for select using (true);

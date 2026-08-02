@@ -18,19 +18,22 @@ if (logoImg.complete && logoImg.naturalWidth === 0) {
 }
 
 // ---------- State ----------
-// selectedSucos/selectedSobremesas: Map<itemId, { item, qty }> — a pedido
-// pode ter vários sucos/sobremesas, inclusive repetindo o mesmo item.
+// selectedProducts/selectedSucos/selectedSobremesas: Map<itemId, { item, qty }>
+// — um pedido pode ter vários itens de cada tipo, inclusive repetindo o mesmo.
 const state = {
   products: [],
   sucos: [],
   sobremesas: [],
   timeWindows: [],
-  selectedProduct: null,
+  selectedProducts: new Map(),
   selectedSucos: new Map(),
   selectedSobremesas: new Map(),
   paymentMethod: null,
   pixKey: "",
   activeWindow: null,
+  // true logo após um pedido ser confirmado, até o cliente mexer em algo de
+  // novo — usado só para deixar o resumo com fonte mais clara nesse meio-tempo.
+  orderConfirmed: false,
 };
 
 const els = {
@@ -45,6 +48,7 @@ const els = {
   formMsg: document.getElementById("form-msg"),
   nome: document.getElementById("nome_cliente"),
   whatsapp: document.getElementById("whatsapp_cliente"),
+  summary: document.querySelector(".summary"),
   summaryProduct: document.getElementById("summary-product"),
   summarySuco: document.getElementById("summary-suco"),
   summarySobremesa: document.getElementById("summary-sobremesa"),
@@ -151,48 +155,22 @@ async function loadData() {
   state.timeWindows = windowsRes.data || [];
   state.pixKey = configRes.data?.pix_key || "";
 
-  renderProducts();
-  renderExtras("sucos", state.sucos, els.sucosGrid);
-  renderExtras("sobremesas", state.sobremesas, els.sobremesasGrid);
+  renderPickList(state.selectedProducts, state.products, els.productsGrid, "Nenhum prato disponível no momento.");
+  renderPickList(state.selectedSucos, state.sucos, els.sucosGrid, "Nenhuma opção disponível.");
+  renderPickList(state.selectedSobremesas, state.sobremesas, els.sobremesasGrid, "Nenhuma opção disponível.");
   renderBanner();
 }
 
 // ---------- Rendering: cards ----------
-function renderProducts() {
-  els.productsGrid.innerHTML = "";
-  if (state.products.length === 0) {
-    els.productsGrid.innerHTML = '<p class="empty-state">Nenhum prato disponível no momento.</p>';
-    return;
-  }
-  state.products.forEach((p) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "pick-card";
-    card.innerHTML = `
-      <span class="pick-card__nome">${escapeHtml(p.nome)}</span>
-      ${p.descricao ? `<span class="pick-card__desc">${escapeHtml(p.descricao)}</span>` : ""}
-      ${p.preco != null ? `<span class="pick-card__preco">${brl(p.preco)}</span>` : ""}
-    `;
-    card.addEventListener("click", () => {
-      state.selectedProduct = p;
-      renderProducts();
-      renderSummary();
-      updateSubmitState();
-    });
-    if (state.selectedProduct?.id === p.id) card.classList.add("selected");
-    els.productsGrid.appendChild(card);
-  });
-}
-
-function renderExtras(kind, items, container) {
+// Usado para pratos, sucos e sobremesas: todos aceitam escolher vários itens,
+// inclusive repetindo o mesmo item com quantidade.
+function renderPickList(selectedMap, items, container, emptyMessage) {
   container.innerHTML = "";
 
   if (items.length === 0) {
-    container.innerHTML = '<p class="empty-state">Nenhuma opção disponível.</p>';
+    container.innerHTML = `<p class="empty-state">${emptyMessage}</p>`;
     return;
   }
-
-  const selectedMap = kind === "sucos" ? state.selectedSucos : state.selectedSobremesas;
 
   items.forEach((item) => {
     const qty = selectedMap.get(item.id)?.qty || 0;
@@ -200,6 +178,7 @@ function renderExtras(kind, items, container) {
     card.className = "pick-card qty-card" + (qty > 0 ? " selected" : "");
     card.innerHTML = `
       <span class="pick-card__nome">${escapeHtml(item.nome)}</span>
+      ${item.descricao ? `<span class="pick-card__desc">${escapeHtml(item.descricao)}</span>` : ""}
       ${item.preco != null ? `<span class="pick-card__preco">${brl(item.preco)}</span>` : ""}
       <div class="qty-control">
         <button type="button" class="qty-btn" data-action="dec" aria-label="Diminuir quantidade de ${escapeHtml(item.nome)}">−</button>
@@ -210,7 +189,8 @@ function renderExtras(kind, items, container) {
     card.querySelector('[data-action="inc"]').addEventListener("click", () => {
       const current = selectedMap.get(item.id)?.qty || 0;
       selectedMap.set(item.id, { item, qty: current + 1 });
-      renderExtras(kind, items, container);
+      state.orderConfirmed = false;
+      renderPickList(selectedMap, items, container, emptyMessage);
       renderSummary();
       updateSubmitState();
     });
@@ -218,7 +198,8 @@ function renderExtras(kind, items, container) {
       const current = selectedMap.get(item.id)?.qty || 0;
       if (current <= 1) selectedMap.delete(item.id);
       else selectedMap.set(item.id, { item, qty: current - 1 });
-      renderExtras(kind, items, container);
+      state.orderConfirmed = false;
+      renderPickList(selectedMap, items, container, emptyMessage);
       renderSummary();
       updateSubmitState();
     });
@@ -236,6 +217,7 @@ function escapeHtml(str) {
 document.querySelectorAll(".payment-option").forEach((btn) => {
   btn.addEventListener("click", () => {
     state.paymentMethod = btn.dataset.payment;
+    state.orderConfirmed = false;
     document.querySelectorAll(".payment-option").forEach((b) => b.classList.toggle("selected", b === btn));
 
     if (state.paymentMethod === "pix") {
@@ -254,7 +236,7 @@ document.querySelectorAll(".payment-option").forEach((btn) => {
 });
 
 // ---------- Summary ----------
-function extrasTotal(map) {
+function pickListTotal(map) {
   let total = 0;
   map.forEach(({ item, qty }) => {
     total += Number(item.preco || 0) * qty;
@@ -262,7 +244,7 @@ function extrasTotal(map) {
   return total;
 }
 
-function extrasSummaryHtml(map, emptyLabel) {
+function pickListSummaryHtml(map, emptyLabel) {
   if (map.size === 0) return emptyLabel;
   return Array.from(map.values())
     .map(({ item, qty }) => {
@@ -274,18 +256,18 @@ function extrasSummaryHtml(map, emptyLabel) {
 }
 
 function renderSummary() {
-  els.summaryProduct.textContent = state.selectedProduct
-    ? `${state.selectedProduct.nome}${state.selectedProduct.preco != null ? ` — ${brl(state.selectedProduct.preco)}` : ""}`
-    : "—";
-  els.summarySuco.innerHTML = extrasSummaryHtml(state.selectedSucos, "Nenhum");
-  els.summarySobremesa.innerHTML = extrasSummaryHtml(state.selectedSobremesas, "Nenhuma");
+  els.summaryProduct.innerHTML = pickListSummaryHtml(state.selectedProducts, "—");
+  els.summarySuco.innerHTML = pickListSummaryHtml(state.selectedSucos, "Nenhum");
+  els.summarySobremesa.innerHTML = pickListSummaryHtml(state.selectedSobremesas, "Nenhuma");
   els.summaryPayment.textContent = state.paymentMethod === "pix" ? "Pix" : state.paymentMethod === "cartao" ? "Cartão" : "—";
 
   const total =
-    Number(state.selectedProduct?.preco || 0) +
-    extrasTotal(state.selectedSucos) +
-    extrasTotal(state.selectedSobremesas);
+    pickListTotal(state.selectedProducts) +
+    pickListTotal(state.selectedSucos) +
+    pickListTotal(state.selectedSobremesas);
   els.summaryTotal.textContent = brl(total) || "R$ 0,00";
+
+  els.summary.classList.toggle("summary--confirmed", state.orderConfirmed);
 }
 
 // ---------- Submit gating ----------
@@ -293,7 +275,7 @@ function updateSubmitState() {
   const ready =
     isSupabaseConfigured &&
     state.activeWindow &&
-    state.selectedProduct &&
+    state.selectedProducts.size > 0 &&
     state.paymentMethod &&
     els.nome.value.trim() &&
     isValidWhatsapp(els.whatsapp.value);
@@ -337,7 +319,6 @@ els.form.addEventListener("submit", async (e) => {
     .insert({
       nome_cliente: els.nome.value.trim(),
       whatsapp_cliente: els.whatsapp.value.trim(),
-      product_id: state.selectedProduct.id,
       forma_pagamento: state.paymentMethod,
       time_window_id: state.activeWindow.id,
     })
@@ -353,22 +334,29 @@ els.form.addEventListener("submit", async (e) => {
     return;
   }
 
+  const productRows = Array.from(state.selectedProducts.values()).map(({ item, qty }) => ({
+    order_id: orderData.id,
+    product_id: item.id,
+    quantidade: qty,
+  }));
   const extraRows = [
     ...Array.from(state.selectedSucos.values()),
     ...Array.from(state.selectedSobremesas.values()),
   ].map(({ item, qty }) => ({ order_id: orderData.id, extra_item_id: item.id, quantidade: qty }));
 
-  if (extraRows.length) {
-    const { error: extrasError } = await supabase.from("order_extra_items").insert(extraRows);
-    if (extrasError) {
-      console.error(extrasError);
-      await supabase.from("orders").delete().eq("id", orderData.id);
-      els.submitBtn.textContent = "Confirmar pedido";
-      els.formMsg.textContent = "Erro ao enviar pedido. Tente novamente.";
-      els.formMsg.className = "form-msg form-msg--error";
-      updateSubmitState();
-      return;
-    }
+  const { error: productsError } = await supabase.from("order_products").insert(productRows);
+  const { error: extrasError } = extraRows.length
+    ? await supabase.from("order_extra_items").insert(extraRows)
+    : { error: null };
+
+  if (productsError || extrasError) {
+    console.error(productsError || extrasError);
+    await supabase.from("orders").delete().eq("id", orderData.id);
+    els.submitBtn.textContent = "Confirmar pedido";
+    els.formMsg.textContent = "Erro ao enviar pedido. Tente novamente.";
+    els.formMsg.className = "form-msg form-msg--error";
+    updateSubmitState();
+    return;
   }
 
   els.submitBtn.textContent = "Confirmar pedido";
@@ -386,17 +374,12 @@ els.form.addEventListener("submit", async (e) => {
     })
     .catch((err) => console.error("Falha ao notificar WhatsApp:", err));
 
-  // Reset selections for a possible new order, keep window/products loaded
-  state.selectedProduct = null;
-  state.selectedSucos = new Map();
-  state.selectedSobremesas = new Map();
-  state.paymentMethod = null;
-  els.form.reset();
-  document.querySelectorAll(".payment-option").forEach((b) => b.classList.remove("selected"));
-  els.paymentDetail.style.display = "none";
-  renderProducts();
-  renderExtras("sucos", state.sucos, els.sucosGrid);
-  renderExtras("sobremesas", state.sobremesas, els.sobremesasGrid);
+  // O resumo do pedido continua mostrando o que acabou de ser enviado (só
+  // com a fonte mais clara, via summary--confirmed) até o cliente montar um
+  // novo pedido. Só o nome/WhatsApp são limpos, para não reenviar sem querer.
+  state.orderConfirmed = true;
+  els.nome.value = "";
+  els.whatsapp.value = "";
   renderSummary();
   updateSubmitState();
 });

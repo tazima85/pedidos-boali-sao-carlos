@@ -52,9 +52,19 @@ type ExtraItem = {
   extra_items: { nome: string; preco: number | null; categoria: string } | null;
 };
 
+type ProductRow = {
+  quantidade: number;
+  products: { nome: string; preco: number | null } | null;
+};
+
 function formatExtrasList(list: ExtraItem[], emptyLabel: string) {
   if (!list.length) return emptyLabel;
   return list.map((oi) => `${oi.extra_items?.nome ?? ""}${formatQty(oi.quantidade)}`).join(", ");
+}
+
+function formatProductsList(list: ProductRow[], emptyLabel: string) {
+  if (!list.length) return emptyLabel;
+  return list.map((row) => `${row.products?.nome ?? ""}${formatQty(row.quantidade)}`).join(", ");
 }
 
 // Data/hora limite de retirada: fim da janela de horário + 45 minutos.
@@ -70,11 +80,15 @@ function pickupDeadline(data: string, horaFim: string) {
 }
 
 function buildMessage(order: any) {
+  const produtos: ProductRow[] = order.order_products || [];
   const extras: ExtraItem[] = order.order_extra_items || [];
   const sucos = extras.filter((oi) => oi.extra_items?.categoria === "suco");
   const sobremesas = extras.filter((oi) => oi.extra_items?.categoria === "sobremesa");
 
-  let total = Number(order.products?.preco || 0);
+  let total = 0;
+  produtos.forEach((row) => {
+    total += Number(row.products?.preco || 0) * row.quantidade;
+  });
   extras.forEach((oi) => {
     total += Number(oi.extra_items?.preco || 0) * oi.quantidade;
   });
@@ -84,7 +98,7 @@ function buildMessage(order: any) {
 
   return `Olá ${order.nome_cliente}, seu pedido #${order.numero} na Boali São Carlos foi recebido!
 
-Prato: ${order.products?.nome ?? "-"}
+Prato: ${formatProductsList(produtos, "-")}
 Suco: ${formatExtrasList(sucos, "Nenhum")}
 Sobremesa: ${formatExtrasList(sobremesas, "Nenhuma")}
 Pagamento: ${pagamento}
@@ -110,7 +124,7 @@ Deno.serve(async (req) => {
       .from("orders")
       .select(`
         *,
-        products(nome, preco),
+        order_products(quantidade, products(nome, preco)),
         time_windows(data, hora_inicio, hora_fim),
         order_extra_items(quantidade, extra_items(nome, preco, categoria))
       `)

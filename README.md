@@ -21,9 +21,10 @@ GitHub Pages.
    o piloto.
 
    Se o projeto Supabase já existia antes de sucos/sobremesas múltiplos e do
-   número sequencial de pedido, rode também
-   [`sql/migration_002_numero_e_multiplos_extras.sql`](sql/migration_002_numero_e_multiplos_extras.sql)
-   uma única vez — ele migra os pedidos já salvos sem perder dados.
+   número sequencial de pedido, rode também, uma vez cada,
+   [`sql/migration_002_numero_e_multiplos_extras.sql`](sql/migration_002_numero_e_multiplos_extras.sql) e
+   [`sql/migration_003_multiplos_pratos.sql`](sql/migration_003_multiplos_pratos.sql)
+   (nessa ordem) — migram os pedidos já salvos sem perder dados.
 3. Em **Project Settings → API**, copie:
    - **Project URL**
    - **anon public key**
@@ -63,8 +64,12 @@ normalmente, só não sai a mensagem de confirmação.
 
 1. Crie uma conta em [z-api.io](https://www.z-api.io) e conecte um número de
    WhatsApp real escaneando o QR Code (igual ao WhatsApp Web).
-2. No painel do Z-API, pegue: **Instance ID**, **Token** (da instância) e o
-   **Client-Token** (em Segurança da conta).
+2. No painel do Z-API, pegue **Instance ID** e **Token** (em Instâncias Web →
+   sua instância). Depois vá em **Segurança → 3. Token de segurança da
+   conta → Configurar agora** e ative o **Client-Token** (a Z-API manda um
+   código de confirmação por e-mail/SMS/WhatsApp para validar) — sem isso o
+   envio é rejeitado com erro `your client-token is not configured`. O valor
+   só aparece uma vez, então copie e guarde assim que gerar.
 3. No painel do Supabase, vá em **Edge Functions → New function**, dê o nome
    `send-order-whatsapp` e cole o conteúdo de
    [`supabase/functions/send-order-whatsapp/index.ts`](supabase/functions/send-order-whatsapp/index.ts).
@@ -138,6 +143,7 @@ admin/index.html        painel administrativo
 admin/js/admin.js       lógica do admin (CRUD + consolidado)
 sql/schema.sql                              tabelas + RLS para rodar no Supabase (projeto novo)
 sql/migration_002_numero_e_multiplos_extras.sql  migração para projetos já existentes
+sql/migration_003_multiplos_pratos.sql           migração para projetos já existentes
 supabase/functions/send-order-whatsapp/index.ts  Edge Function que envia a confirmação por WhatsApp
 ```
 
@@ -146,9 +152,10 @@ supabase/functions/send-order-whatsapp/index.ts  Edge Function que envia a confi
 Ver [`sql/schema.sql`](sql/schema.sql) — tabelas `products`, `extra_items`
 (sucos e sobremesas, diferenciados pelo campo `categoria`), `time_windows`,
 `orders` (com `numero`, um contador sequencial legível começando em 100),
+`order_products` (pratos escolhidos em cada pedido, com `quantidade`),
 `order_extra_items` (sucos/sobremesas escolhidos em cada pedido, com
-`quantidade` — um pedido pode ter vários itens, inclusive repetido) e
-`config` (linha única com `pix_key`).
+`quantidade`) — em ambos, um pedido pode ter vários itens, inclusive
+repetido — e `config` (linha única com `pix_key`).
 
 ## Regras de negócio implementadas
 
@@ -157,10 +164,13 @@ Ver [`sql/schema.sql`](sql/schema.sql) — tabelas `products`, `extra_items`
   cliente. Fora da janela, o botão de enviar fica desabilitado e o banner
   mostra a próxima janela cadastrada (ou "pedidos fechados no momento", se não
   houver nenhuma futura).
-- Nome, WhatsApp (validado como celular com DDD, 11 dígitos), prato e forma
-  de pagamento são obrigatórios; suco e sobremesa são opcionais, com seleção
-  múltipla e quantidade por item (o mesmo suco pode ser pedido mais de uma
-  vez, por exemplo).
+- Nome, WhatsApp (validado como celular com DDD, 11 dígitos), pelo menos um
+  prato e forma de pagamento são obrigatórios; suco e sobremesa são
+  opcionais. Prato, suco e sobremesa aceitam seleção múltipla e quantidade
+  por item (o mesmo item pode ser pedido mais de uma vez, por exemplo).
+- Depois de confirmado, o resumo do pedido continua visível (com fonte mais
+  clara) até o cliente montar um novo pedido — só nome e WhatsApp são
+  limpos, para evitar reenvio sem querer.
 - Sem controle de estoque e sem limite de pedidos por cliente/janela.
 - Pix mostra a chave cadastrada em `/admin/`; Cartão mostra aviso de que o
   pagamento é combinado na entrega/retirada — nenhum dos dois integra gateway

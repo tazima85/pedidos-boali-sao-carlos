@@ -299,6 +299,13 @@ input:focus, textarea:focus, select:focus {
   padding-top: 0.9rem;
 }
 
+/* Resumo de um pedido já confirmado: mantém os dados visíveis, mas com
+   fonte mais clara para diferenciar de um pedido ainda em montagem. */
+.summary--confirmed dd,
+.summary--confirmed .summary__total {
+  color: #b3a692;
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-block;
