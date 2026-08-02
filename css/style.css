@@ -453,6 +453,14 @@ th { color: #6b5c4a; font-size: 0.78rem; text-transform: uppercase; letter-spaci
 
 .stat-box ul { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; }
 
+.stat-box__subhead {
+  margin: 0.7rem 0 0.3rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b5c4a;
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;

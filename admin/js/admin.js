@@ -342,9 +342,13 @@ function orderExtras(o, categoria) {
   return (o.order_extra_items || []).filter((oi) => oi.extra_items?.categoria === categoria);
 }
 
+function formatQty(qty) {
+  return qty > 1 ? ` (${qty}x)` : "";
+}
+
 function formatExtrasList(list) {
   if (!list.length) return "—";
-  return list.map((oi) => `${escapeHtml(oi.extra_items.nome)}${oi.quantidade > 1 ? ` x${oi.quantidade}` : ""}`).join(", ");
+  return list.map((oi) => `${escapeHtml(oi.extra_items.nome)}${formatQty(oi.quantidade)}`).join(", ");
 }
 
 async function loadConsolidadoWindows() {
@@ -420,7 +424,8 @@ function renderConsolidadoTable() {
 
 function renderConsolidadoStats() {
   const byPrato = {};
-  const byExtra = {};
+  const bySuco = {};
+  const bySobremesa = {};
   const byPagamento = { pix: 0, cartao: 0 };
   let total = 0;
 
@@ -431,7 +436,8 @@ function renderConsolidadoStats() {
     let extrasTotal = 0;
     (o.order_extra_items || []).forEach((oi) => {
       if (!oi.extra_items) return;
-      byExtra[oi.extra_items.nome] = (byExtra[oi.extra_items.nome] || 0) + oi.quantidade;
+      const bucket = oi.extra_items.categoria === "suco" ? bySuco : bySobremesa;
+      bucket[oi.extra_items.nome] = (bucket[oi.extra_items.nome] || 0) + oi.quantidade;
       extrasTotal += Number(oi.extra_items.preco || 0) * oi.quantidade;
     });
 
@@ -451,21 +457,23 @@ function renderConsolidadoStats() {
       <h3>Total de pedidos</h3>
       <p style="font-size:1.5rem; font-weight:700; margin:0;">${currentOrders.length}</p>
       <p style="margin:0.35rem 0 0; font-size:0.85rem;">Soma dos itens: <strong>${brl(total)}</strong></p>
+      <p class="stat-box__subhead">Por forma de pagamento</p>
+      <ul>
+        <li>Pix: <strong>${byPagamento.pix || 0}</strong></li>
+        <li>Cartão: <strong>${byPagamento.cartao || 0}</strong></li>
+      </ul>
     </div>
     <div class="stat-box">
       <h3>Por prato</h3>
       ${listHtml(byPrato, "Nenhum pedido.")}
     </div>
     <div class="stat-box">
-      <h3>Por suco / sobremesa</h3>
-      ${listHtml(byExtra, "Nenhum item extra pedido.")}
+      <h3>Por suco</h3>
+      ${listHtml(bySuco, "Nenhum suco pedido.")}
     </div>
     <div class="stat-box">
-      <h3>Por forma de pagamento</h3>
-      <ul>
-        <li>Pix: <strong>${byPagamento.pix || 0}</strong></li>
-        <li>Cartão: <strong>${byPagamento.cartao || 0}</strong></li>
-      </ul>
+      <h3>Por sobremesa</h3>
+      ${listHtml(bySobremesa, "Nenhuma sobremesa pedida.")}
     </div>
   `;
 }
@@ -487,8 +495,8 @@ btnExportCsv.addEventListener("click", () => {
     o.nome_cliente,
     o.whatsapp_cliente,
     o.products?.nome || "",
-    orderExtras(o, "suco").map((oi) => `${oi.extra_items.nome}${oi.quantidade > 1 ? ` x${oi.quantidade}` : ""}`).join(", "),
-    orderExtras(o, "sobremesa").map((oi) => `${oi.extra_items.nome}${oi.quantidade > 1 ? ` x${oi.quantidade}` : ""}`).join(", "),
+    orderExtras(o, "suco").map((oi) => `${oi.extra_items.nome}${formatQty(oi.quantidade)}`).join(", "),
+    orderExtras(o, "sobremesa").map((oi) => `${oi.extra_items.nome}${formatQty(oi.quantidade)}`).join(", "),
     o.forma_pagamento === "pix" ? "Pix" : "Cartão",
     formatDateTime(o.criado_em),
   ]);

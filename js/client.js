@@ -266,7 +266,7 @@ function extrasSummaryHtml(map, emptyLabel) {
   if (map.size === 0) return emptyLabel;
   return Array.from(map.values())
     .map(({ item, qty }) => {
-      const qtyLabel = qty > 1 ? ` x${qty}` : "";
+      const qtyLabel = qty > 1 ? ` (${qty}x)` : "";
       const priceLabel = item.preco != null ? ` — ${brl(item.preco * qty)}` : "";
       return `${escapeHtml(item.nome)}${qtyLabel}${priceLabel}`;
     })
