@@ -50,7 +50,44 @@ pausado automaticamente e precisa ser reativado manualmente em
 frequência isso não deve ser problema, mas se ficar muito tempo sem uso,
 reative antes de uma nova rodada de pedidos.
 
-## 2. Rodar localmente
+## 2. Confirmação automática por WhatsApp
+
+Assim que um pedido é enviado em `/`, o site tenta avisar o cliente por
+WhatsApp (mensagem com o número do pedido, itens, pagamento e horário de
+retirada). Isso passa por uma **Supabase Edge Function** — não existe forma
+seguro de mandar WhatsApp direto do navegador sem expor uma chave de API no
+código público do site.
+
+Essa etapa é opcional: se você pular, os pedidos continuam funcionando
+normalmente, só não sai a mensagem de confirmação.
+
+1. Crie uma conta em [z-api.io](https://www.z-api.io) e conecte um número de
+   WhatsApp real escaneando o QR Code (igual ao WhatsApp Web).
+2. No painel do Z-API, pegue: **Instance ID**, **Token** (da instância) e o
+   **Client-Token** (em Segurança da conta).
+3. No painel do Supabase, vá em **Edge Functions → New function**, dê o nome
+   `send-order-whatsapp` e cole o conteúdo de
+   [`supabase/functions/send-order-whatsapp/index.ts`](supabase/functions/send-order-whatsapp/index.ts).
+   Não precisa instalar a Supabase CLI — dá para criar e publicar direto pelo
+   editor do painel.
+4. Em **Edge Functions → send-order-whatsapp → Secrets**, cadastre:
+
+   | Nome | Valor |
+   |---|---|
+   | `SUPABASE_URL` | a mesma URL usada em `js/config.js` |
+   | `SUPABASE_ANON_KEY` | a mesma anon key usada em `js/config.js` |
+   | `ZAPI_INSTANCE_ID` | Instance ID do Z-API |
+   | `ZAPI_TOKEN` | Token da instância do Z-API |
+   | `ZAPI_CLIENT_TOKEN` | Client-Token de segurança da conta Z-API |
+
+5. Teste pela própria aba de teste da function no painel do Supabase, enviando
+   `{ "order_id": "uuid-de-um-pedido-existente" }` — confira se a mensagem
+   chega no WhatsApp antes de testar pelo site.
+
+O texto da mensagem fica todo dentro da function (`buildMessage` em
+`index.ts`) — dá para editar aí sem mexer no resto do projeto.
+
+## 3. Rodar localmente
 
 Como as páginas usam ES Modules (`<script type="module">`), abrir os arquivos
 `.html` direto do disco (`file://`) não funciona — o navegador bloqueia os
@@ -66,7 +103,7 @@ python -m http.server 8080
 Depois acesse `http://localhost:PORTA/` (cliente) e
 `http://localhost:PORTA/admin/` (admin).
 
-## 3. Publicar no GitHub Pages
+## 4. Publicar no GitHub Pages
 
 1. Suba o conteúdo desta pasta para um repositório no GitHub (a raiz do
    repositório deve ser a raiz deste projeto).
@@ -81,7 +118,7 @@ Todos os caminhos de CSS/JS/imagens no projeto são relativos (não começam com
 O arquivo `.nojekyll` na raiz evita que o GitHub Pages processe o site com
 Jekyll (não é necessário para este projeto, mas evita surpresas).
 
-## 4. Logo
+## 5. Logo
 
 Coloque o arquivo da logo em [`assets/logo.png`](assets/logo.png) (fundo
 laranja `#F7582E`, símbolo em creme `#FAF3E0`). Até lá — ou se o arquivo não
@@ -101,6 +138,7 @@ admin/index.html        painel administrativo
 admin/js/admin.js       lógica do admin (CRUD + consolidado)
 sql/schema.sql                              tabelas + RLS para rodar no Supabase (projeto novo)
 sql/migration_002_numero_e_multiplos_extras.sql  migração para projetos já existentes
+supabase/functions/send-order-whatsapp/index.ts  Edge Function que envia a confirmação por WhatsApp
 ```
 
 ## Modelo de dados
@@ -132,9 +170,11 @@ Ver [`sql/schema.sql`](sql/schema.sql) — tabelas `products`, `extra_items`
   intencional para este piloto (ver escopo abaixo).
 - O CSV exportado no consolidado usa `;` como separador (compatível com Excel
   em pt-BR) e é filtrado pela janela de horário selecionada.
+- Ao enviar o pedido, o site tenta mandar uma confirmação por WhatsApp (ver
+  seção 2). Se essa etapa não estiver configurada ou falhar, o pedido é salvo
+  normalmente mesmo assim — a notificação nunca bloqueia o fluxo de compra.
 
 ## Fora de escopo neste piloto
 
 Confirmação automática de pagamento Pix, gateway de cartão, login no admin,
-controle de estoque, limite de "1 pedido por pessoa" e notificações
-automáticas (WhatsApp/e-mail).
+controle de estoque e limite de "1 pedido por pessoa".

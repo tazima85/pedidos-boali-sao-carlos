@@ -375,6 +375,17 @@ els.form.addEventListener("submit", async (e) => {
   els.formMsg.textContent = "Pedido enviado com sucesso!";
   els.formMsg.className = "form-msg form-msg--success";
 
+  // Notificação de WhatsApp é um bônus, não uma condição do pedido: não
+  // bloqueia a UI nem afeta a mensagem de sucesso se falhar. invoke() não
+  // rejeita a Promise em erros HTTP (ex: function ainda não publicada) —
+  // resolve com { error } — por isso checamos os dois casos.
+  supabase.functions
+    .invoke("send-order-whatsapp", { body: { order_id: orderData.id } })
+    .then(({ error: fnError }) => {
+      if (fnError) console.error("Falha ao notificar WhatsApp:", fnError);
+    })
+    .catch((err) => console.error("Falha ao notificar WhatsApp:", err));
+
   // Reset selections for a possible new order, keep window/products loaded
   state.selectedProduct = null;
   state.selectedSucos = new Map();
