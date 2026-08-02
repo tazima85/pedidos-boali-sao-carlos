@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<header class="app-header">
+<header class="app-header no-print">
   <img src="../assets/logo.png" alt="Logo Boali" class="app-header__logo" id="logo-img" />
   <div class="app-header__titles">
     <h1>Pedidos Boali São Carlos</h1>
@@ -21,20 +21,47 @@
 
 <main class="page">
 
-  <div id="config-warning" class="banner banner--closed" style="display:none;">
+  <div id="config-warning" class="banner banner--closed no-print" style="display:none;">
     Supabase não configurado. Edite <code>js/config.js</code> na raiz do projeto com a URL e a anon key do seu projeto.
   </div>
 
-  <nav class="tabs">
-    <button class="tab-btn active" data-tab="pratos">Pratos</button>
+  <nav class="tabs no-print">
+    <button class="tab-btn active" data-tab="consolidado">Pedido consolidado</button>
+    <button class="tab-btn" data-tab="pratos">Pratos</button>
     <button class="tab-btn" data-tab="extras">Sucos &amp; Sobremesas</button>
     <button class="tab-btn" data-tab="janelas">Janelas de horário</button>
     <button class="tab-btn" data-tab="pix">Chave Pix</button>
-    <button class="tab-btn" data-tab="consolidado">Pedido consolidado</button>
   </nav>
 
+  <!-- ---------- Pedido consolidado ---------- -->
+  <section id="tab-consolidado" class="tab-panel active">
+    <div class="admin-card">
+      <h2>Pedido consolidado</h2>
+      <div class="toolbar">
+        <div style="flex:1; min-width:220px;">
+          <label for="consolidado-janela">Janela de horário</label>
+          <select id="consolidado-janela"></select>
+        </div>
+        <div class="row-actions no-print">
+          <button type="button" id="btn-export-csv" class="btn btn-secondary btn-small">Exportar CSV</button>
+          <button type="button" id="btn-print" class="btn btn-secondary btn-small">Imprimir</button>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="consolidado-stats"></div>
+
+      <h3 style="margin-top:1.5rem;">Pedidos da janela</h3>
+      <div class="table-wrap">
+        <table id="table-consolidado">
+          <thead><tr><th>ID</th><th>Cliente</th><th>WhatsApp</th><th>Prato</th><th>Suco</th><th>Sobremesa</th><th>Pagamento</th><th>Enviado em</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- ---------- Pratos ---------- -->
-  <section id="tab-pratos" class="tab-panel active">
+  <section id="tab-pratos" class="tab-panel">
     <div class="admin-card">
       <h2>Novo prato</h2>
       <form id="form-prato" class="form-grid">
@@ -167,33 +194,9 @@
     </div>
   </section>
 
-  <!-- ---------- Pedido consolidado ---------- -->
-  <section id="tab-consolidado" class="tab-panel">
-    <div class="admin-card">
-      <h2>Pedido consolidado</h2>
-      <div class="toolbar">
-        <div style="flex:1; min-width:220px;">
-          <label for="consolidado-janela">Janela de horário</label>
-          <select id="consolidado-janela"></select>
-        </div>
-        <button type="button" id="btn-export-csv" class="btn btn-secondary btn-small">Exportar CSV</button>
-      </div>
-
-      <div class="stat-grid" id="consolidado-stats"></div>
-
-      <h3 style="margin-top:1.5rem;">Pedidos da janela</h3>
-      <div class="table-wrap">
-        <table id="table-consolidado">
-          <thead><tr><th>Cliente</th><th>WhatsApp</th><th>Prato</th><th>Suco</th><th>Sobremesa</th><th>Pagamento</th><th>Enviado em</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
 </main>
 
-<p class="footer-note">Pedidos Boali São Carlos — Painel administrativo</p>
+<p class="footer-note no-print">Pedidos Boali São Carlos — Painel administrativo</p>
 
 <script type="module" src="js/admin.js"></script>
 </body>

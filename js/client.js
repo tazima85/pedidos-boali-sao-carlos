@@ -65,6 +65,23 @@ function formatDate(d) {
   return `${day}/${m}/${y}`;
 }
 
+// ---------- WhatsApp mask/validation ----------
+// Brazilian cell numbers: 2-digit DDD + 9-digit number (with leading 9) = 11 digits.
+function onlyDigits(str) {
+  return (str || "").replace(/\D/g, "");
+}
+
+function formatWhatsapp(rawValue) {
+  const digits = onlyDigits(rawValue).slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function isValidWhatsapp(value) {
+  return onlyDigits(value).length === 11;
+}
+
 // ---------- Time window logic ----------
 function windowRange(w) {
   const start = new Date(`${w.data}T${w.hora_inicio}`);
@@ -219,11 +236,11 @@ document.querySelectorAll(".payment-option").forEach((btn) => {
     if (state.paymentMethod === "pix") {
       els.paymentDetail.style.display = "block";
       els.paymentDetail.innerHTML = state.pixKey
-        ? `Chave Pix para pagamento: <code>${escapeHtml(state.pixKey)}</code>`
+        ? `Faça seu pix antes de finalizar o pedido e guarde o comprovante. Chave Pix: <code>${escapeHtml(state.pixKey)}</code>`
         : "Chave Pix ainda não configurada pelo admin.";
     } else {
       els.paymentDetail.style.display = "block";
-      els.paymentDetail.textContent = "O pagamento no cartão será combinado na entrega/retirada.";
+      els.paymentDetail.textContent = "O pagamento será realizado na retirada.";
     }
 
     renderSummary();
@@ -259,11 +276,20 @@ function updateSubmitState() {
     state.selectedProduct &&
     state.paymentMethod &&
     els.nome.value.trim() &&
-    els.whatsapp.value.trim();
+    isValidWhatsapp(els.whatsapp.value);
   els.submitBtn.disabled = !ready;
 }
 
-[els.nome, els.whatsapp].forEach((input) => input.addEventListener("input", updateSubmitState));
+els.nome.addEventListener("input", updateSubmitState);
+
+els.whatsapp.addEventListener("input", () => {
+  const cursorAtEnd = els.whatsapp.selectionEnd === els.whatsapp.value.length;
+  els.whatsapp.value = formatWhatsapp(els.whatsapp.value);
+  if (cursorAtEnd) {
+    els.whatsapp.selectionStart = els.whatsapp.selectionEnd = els.whatsapp.value.length;
+  }
+  updateSubmitState();
+});
 
 // ---------- Submit ----------
 els.form.addEventListener("submit", async (e) => {
@@ -273,6 +299,12 @@ els.form.addEventListener("submit", async (e) => {
 
   if (!state.activeWindow) {
     els.formMsg.textContent = "Pedidos fechados no momento.";
+    els.formMsg.className = "form-msg form-msg--error";
+    return;
+  }
+
+  if (!isValidWhatsapp(els.whatsapp.value)) {
+    els.formMsg.textContent = "Informe um WhatsApp válido, com DDD (11 dígitos).";
     els.formMsg.className = "form-msg form-msg--error";
     return;
   }

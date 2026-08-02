@@ -333,9 +333,14 @@ const consolidadoJanelaSelect = document.getElementById("consolidado-janela");
 const consolidadoStats = document.getElementById("consolidado-stats");
 const consolidadoTbody = document.querySelector("#table-consolidado tbody");
 const btnExportCsv = document.getElementById("btn-export-csv");
+const btnPrint = document.getElementById("btn-print");
 
 let currentOrders = [];
 let currentWindowLabel = "";
+
+function shortOrderId(id) {
+  return id ? id.slice(0, 8).toUpperCase() : "—";
+}
 
 async function loadConsolidadoWindows() {
   const { data, error } = await supabase.from("time_windows").select("*").order("data", { ascending: false }).order("hora_inicio", { ascending: false });
@@ -344,7 +349,7 @@ async function loadConsolidadoWindows() {
   consolidadoJanelaSelect.innerHTML = "";
   if (!data.length) {
     consolidadoJanelaSelect.innerHTML = '<option value="">Nenhuma janela cadastrada</option>';
-    consolidadoTbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhuma janela cadastrada.</td></tr>';
+    consolidadoTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhuma janela cadastrada.</td></tr>';
     consolidadoStats.innerHTML = "";
     return;
   }
@@ -378,7 +383,7 @@ async function loadConsolidadoOrders() {
 
   if (error) {
     console.error(error);
-    consolidadoTbody.innerHTML = '<tr><td colspan="7" class="empty-state">Erro ao carregar pedidos.</td></tr>';
+    consolidadoTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Erro ao carregar pedidos.</td></tr>';
     return;
   }
 
@@ -390,12 +395,13 @@ async function loadConsolidadoOrders() {
 function renderConsolidadoTable() {
   consolidadoTbody.innerHTML = "";
   if (!currentOrders.length) {
-    consolidadoTbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum pedido nesta janela.</td></tr>';
+    consolidadoTbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhum pedido nesta janela.</td></tr>';
     return;
   }
   currentOrders.forEach((o) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
+      <td>${shortOrderId(o.id)}</td>
       <td>${escapeHtml(o.nome_cliente)}</td>
       <td>${escapeHtml(o.whatsapp_cliente)}</td>
       <td>${escapeHtml(o.products?.nome) || "—"}</td>
@@ -467,8 +473,9 @@ btnExportCsv.addEventListener("click", () => {
     alert("Não há pedidos para exportar nesta janela.");
     return;
   }
-  const headers = ["Nome", "WhatsApp", "Prato", "Suco", "Sobremesa", "Pagamento", "Enviado em"];
+  const headers = ["ID", "Nome", "WhatsApp", "Prato", "Suco", "Sobremesa", "Pagamento", "Enviado em"];
   const rows = currentOrders.map((o) => [
+    shortOrderId(o.id),
     o.nome_cliente,
     o.whatsapp_cliente,
     o.products?.nome || "",
@@ -486,6 +493,10 @@ btnExportCsv.addEventListener("click", () => {
   a.download = `pedidos_${safeLabel || "janela"}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+});
+
+btnPrint.addEventListener("click", () => {
+  window.print();
 });
 
 // ---------- Init ----------
