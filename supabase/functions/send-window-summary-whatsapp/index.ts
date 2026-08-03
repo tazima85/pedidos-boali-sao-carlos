@@ -110,7 +110,7 @@ function buildOrderBlock(order: Order) {
   const sobremesas = extras.filter((oi) => oi.extra_items?.categoria === "sobremesa");
   const pagamento = order.forma_pagamento === "pix" ? "Pix" : "Cartão";
 
-  return `#${order.numero} - ${order.nome_cliente}
+  return `*#${order.numero} - ${order.nome_cliente}*
 WhatsApp: ${order.whatsapp_cliente}
 *Prato:* ${formatProductsList(produtos, "-")}
 *Suco:* ${formatExtrasList(sucos, "Nenhum")}
@@ -127,7 +127,7 @@ function buildMessage(windowLabel: string, orders: Order[]) {
     total += orderItemsTotal(o);
   });
 
-  const header = `Pedidos Velocity São Carlos
+  const header = `*PEDIDOS VELOCITY SÃO CARLOS*
 
 *Resumo Pedido:* ${windowLabel}
 
