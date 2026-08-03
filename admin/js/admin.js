@@ -47,6 +47,17 @@ function formatDateTime(ts) {
   return new Date(ts).toLocaleString("pt-BR");
 }
 
+function onlyDigits(str) {
+  return (str || "").replace(/\D/g, "");
+}
+
+function formatWhatsapp(rawValue) {
+  const digits = onlyDigits(rawValue).slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 // ---------- Tabs ----------
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -314,6 +325,8 @@ const consolidadoStats = document.getElementById("consolidado-stats");
 const consolidadoTbody = document.querySelector("#table-consolidado tbody");
 const btnExportCsv = document.getElementById("btn-export-csv");
 const btnPrint = document.getElementById("btn-print");
+const btnExportWhats = document.getElementById("btn-export-whats");
+const whatsExportPhone = document.getElementById("whats-export-phone");
 
 let currentOrders = [];
 let currentWindowLabel = "";
@@ -502,6 +515,47 @@ btnExportCsv.addEventListener("click", () => {
 
 btnPrint.addEventListener("click", () => {
   window.print();
+});
+
+whatsExportPhone.addEventListener("input", () => {
+  const cursorAtEnd = whatsExportPhone.selectionEnd === whatsExportPhone.value.length;
+  whatsExportPhone.value = formatWhatsapp(whatsExportPhone.value);
+  if (cursorAtEnd) {
+    whatsExportPhone.selectionStart = whatsExportPhone.selectionEnd = whatsExportPhone.value.length;
+  }
+});
+
+btnExportWhats.addEventListener("click", async () => {
+  if (!currentOrders.length) {
+    alert("Não há pedidos para exportar nesta janela.");
+    return;
+  }
+  const digits = onlyDigits(whatsExportPhone.value);
+  if (digits.length !== 11) {
+    alert("Informe um WhatsApp válido, com DDD (11 dígitos).");
+    return;
+  }
+  const windowId = consolidadoJanelaSelect.value;
+  const originalLabel = btnExportWhats.textContent;
+  btnExportWhats.disabled = true;
+  btnExportWhats.textContent = "Enviando...";
+  try {
+    const { data, error } = await supabase.functions.invoke("send-window-summary-whatsapp", {
+      body: { time_window_id: windowId, phone: digits },
+    });
+    if (error) {
+      console.error("Erro ao enviar resumo por WhatsApp:", error);
+      alert("Não foi possível enviar o resumo por WhatsApp.");
+      return;
+    }
+    alert("Resumo enviado por WhatsApp!");
+  } catch (err) {
+    console.error("Erro ao enviar resumo por WhatsApp:", err);
+    alert("Não foi possível enviar o resumo por WhatsApp.");
+  } finally {
+    btnExportWhats.disabled = false;
+    btnExportWhats.textContent = originalLabel;
+  }
 });
 
 // ---------- Init ----------

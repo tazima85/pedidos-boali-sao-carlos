@@ -99,6 +99,18 @@ normalmente, só não sai a mensagem de confirmação.
 O texto da mensagem fica todo dentro da function (`buildMessage` em
 `index.ts`) — dá para editar aí sem mexer no resto do projeto.
 
+### Exportar resumo da janela por WhatsApp (admin)
+
+Na aba "Pedido consolidado" do admin, o botão **Exportar Whats** manda um
+resumo de todos os pedidos da janela selecionada (totais + um bloco por
+pedido, separados por `-------`) para um número informado ali mesmo, na
+hora. Isso usa uma segunda Edge Function,
+[`supabase/functions/send-window-summary-whatsapp/index.ts`](supabase/functions/send-window-summary-whatsapp/index.ts),
+publicada do mesmo jeito (**Edge Functions → New function**, nome
+`send-window-summary-whatsapp`, colar o conteúdo do arquivo) — ela reaproveita
+os mesmos segredos `ZAPI_*`/`SUPABASE_*` já cadastrados acima, não precisa de
+nenhuma configuração adicional.
+
 ## 3. Rodar localmente
 
 Como as páginas usam ES Modules (`<script type="module">`), abrir os arquivos
@@ -153,6 +165,7 @@ sql/migration_002_numero_e_multiplos_extras.sql  migração para projetos já ex
 sql/migration_003_multiplos_pratos.sql           migração para projetos já existentes
 sql/migration_004_remove_config_table.sql        migração para projetos já existentes
 supabase/functions/send-order-whatsapp/index.ts  Edge Function que envia a confirmação por WhatsApp
+supabase/functions/send-window-summary-whatsapp/index.ts  Edge Function do botão "Exportar Whats" no admin
 ```
 
 ## Modelo de dados
@@ -190,6 +203,8 @@ repetido, até 9 unidades por item. A chave Pix não fica no banco (ver
   este piloto (ver escopo abaixo).
 - O CSV exportado no consolidado usa `;` como separador (compatível com Excel
   em pt-BR) e é filtrado pela janela de horário selecionada.
+- O botão "Exportar Whats" no consolidado manda esse mesmo resumo por
+  WhatsApp para um número informado na hora (ver seção 2).
 - Ao enviar o pedido, o site tenta mandar uma confirmação por WhatsApp (ver
   seção 2). Se essa etapa não estiver configurada ou falhar, o pedido é salvo
   normalmente mesmo assim — a notificação nunca bloqueia o fluxo de compra.
