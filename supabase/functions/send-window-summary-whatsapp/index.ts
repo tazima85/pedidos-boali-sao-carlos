@@ -127,7 +127,9 @@ function buildMessage(windowLabel: string, orders: Order[]) {
     total += orderItemsTotal(o);
   });
 
-  const header = `*Resumo da janela* — ${windowLabel}
+  const header = `Pedidos Velocity São Carlos
+
+*Resumo Pedido:* ${windowLabel}
 
 *Total de pedidos:* ${orders.length}
 *Total geral:* ${brl(total)}
