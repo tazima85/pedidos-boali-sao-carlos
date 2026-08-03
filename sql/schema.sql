@@ -71,16 +71,6 @@ create table if not exists order_extra_items (
   quantidade     integer not null default 1 check (quantidade > 0)
 );
 
--- ---------- config (linha única com a chave Pix) ----------
-create table if not exists config (
-  id      smallint primary key default 1 check (id = 1),
-  pix_key text
-);
-
-insert into config (id, pix_key)
-values (1, '')
-on conflict (id) do nothing;
-
 -- =========================================================
 -- Row Level Security
 -- Piloto sem autenticação: tanto a página do cliente quanto o
@@ -96,7 +86,6 @@ alter table time_windows      enable row level security;
 alter table orders            enable row level security;
 alter table order_products    enable row level security;
 alter table order_extra_items enable row level security;
-alter table config            enable row level security;
 
 -- products
 create policy "products_select" on products for select using (true);
@@ -133,7 +122,3 @@ create policy "order_extra_items_select" on order_extra_items for select using (
 create policy "order_extra_items_insert" on order_extra_items for insert with check (true);
 create policy "order_extra_items_update" on order_extra_items for update using (true) with check (true);
 create policy "order_extra_items_delete" on order_extra_items for delete using (true);
-
--- config
-create policy "config_select" on config for select using (true);
-create policy "config_update" on config for update using (true) with check (true);

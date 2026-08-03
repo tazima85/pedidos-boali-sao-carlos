@@ -3,36 +3,43 @@
 Site estático (HTML/CSS/JS puro, sem build) com duas páginas:
 
 - `/` — página do cliente, onde ele monta e envia o pedido.
-- `/admin/` — painel administrativo (sem login), onde se cadastram pratos, sucos,
-  sobremesas, janelas de horário, a chave Pix e se vê o pedido consolidado.
+- `/admin/` — painel administrativo (sem login), onde se cadastram pratos,
+  sucos, sobremesas, janelas de horário e se vê o pedido consolidado.
 
-Os dados (pedidos, produtos, janelas de horário, chave Pix) ficam no
+Os dados (pedidos, produtos, janelas de horário) ficam no
 [Supabase](https://supabase.com) (Postgres, plano gratuito), acessado direto do
 navegador. Não há backend próprio — por isso o projeto funciona hospedado no
 GitHub Pages.
+
+A chave Pix não fica no banco: é um valor fixo em [`js/config.js`](js/config.js)
+(`PIX_KEY`) — não existe mais uma aba no admin para editá-la; para trocar,
+edite esse arquivo e publique de novo.
 
 ## 1. Criar e configurar o projeto no Supabase
 
 1. Crie uma conta e um projeto gratuito em [supabase.com](https://supabase.com).
 2. No painel do projeto, abra **SQL Editor** → **New query**, cole o conteúdo de
    [`sql/schema.sql`](sql/schema.sql) e rode. Isso cria as tabelas `products`,
-   `extra_items`, `time_windows`, `orders`, `order_extra_items`, `config` e as
-   políticas de RLS (Row Level Security) que liberam o acesso necessário para
-   o piloto.
+   `extra_items`, `time_windows`, `orders`, `order_products`,
+   `order_extra_items` e as políticas de RLS (Row Level Security) que liberam
+   o acesso necessário para o piloto.
 
-   Se o projeto Supabase já existia antes de sucos/sobremesas múltiplos e do
-   número sequencial de pedido, rode também, uma vez cada,
-   [`sql/migration_002_numero_e_multiplos_extras.sql`](sql/migration_002_numero_e_multiplos_extras.sql) e
-   [`sql/migration_003_multiplos_pratos.sql`](sql/migration_003_multiplos_pratos.sql)
-   (nessa ordem) — migram os pedidos já salvos sem perder dados.
+   Se o projeto Supabase já existia antes de sucos/sobremesas múltiplos, do
+   número sequencial de pedido ou de pratos múltiplos, rode também, uma vez
+   cada e nessa ordem:
+   [`sql/migration_002_numero_e_multiplos_extras.sql`](sql/migration_002_numero_e_multiplos_extras.sql),
+   [`sql/migration_003_multiplos_pratos.sql`](sql/migration_003_multiplos_pratos.sql) e
+   [`sql/migration_004_remove_config_table.sql`](sql/migration_004_remove_config_table.sql)
+   — migram os pedidos já salvos sem perder dados.
 3. Em **Project Settings → API**, copie:
    - **Project URL**
    - **anon public key**
-4. Cole os dois valores em [`js/config.js`](js/config.js):
+4. Cole os dois valores, mais a chave Pix, em [`js/config.js`](js/config.js):
 
    ```js
    export const SUPABASE_URL = "https://SEU-PROJETO.supabase.co";
    export const SUPABASE_ANON_KEY = "sua-anon-key-aqui";
+   export const PIX_KEY = "sua-chave-pix-aqui";
    ```
 
    Esse arquivo é usado tanto pela página do cliente quanto pelo admin. A
@@ -40,8 +47,8 @@ GitHub Pages.
    cliente usa) — a proteção fica por conta das policies de RLS definidas no
    `schema.sql`, não do sigilo dessa chave.
 
-5. Cadastre pelo menos um prato, uma janela de horário e a chave Pix pelo
-   painel `/admin/` antes de testar a página do cliente.
+5. Cadastre pelo menos um prato e uma janela de horário pelo painel `/admin/`
+   antes de testar a página do cliente.
 
 ### ⚠️ Plano gratuito do Supabase pausa após 7 dias sem uso
 
@@ -144,6 +151,7 @@ admin/js/admin.js       lógica do admin (CRUD + consolidado)
 sql/schema.sql                              tabelas + RLS para rodar no Supabase (projeto novo)
 sql/migration_002_numero_e_multiplos_extras.sql  migração para projetos já existentes
 sql/migration_003_multiplos_pratos.sql           migração para projetos já existentes
+sql/migration_004_remove_config_table.sql        migração para projetos já existentes
 supabase/functions/send-order-whatsapp/index.ts  Edge Function que envia a confirmação por WhatsApp
 ```
 
@@ -152,10 +160,11 @@ supabase/functions/send-order-whatsapp/index.ts  Edge Function que envia a confi
 Ver [`sql/schema.sql`](sql/schema.sql) — tabelas `products`, `extra_items`
 (sucos e sobremesas, diferenciados pelo campo `categoria`), `time_windows`,
 `orders` (com `numero`, um contador sequencial legível começando em 100),
-`order_products` (pratos escolhidos em cada pedido, com `quantidade`),
+`order_products` (pratos escolhidos em cada pedido, com `quantidade`) e
 `order_extra_items` (sucos/sobremesas escolhidos em cada pedido, com
 `quantidade`) — em ambos, um pedido pode ter vários itens, inclusive
-repetido — e `config` (linha única com `pix_key`).
+repetido, até 9 unidades por item. A chave Pix não fica no banco (ver
+`PIX_KEY` em `js/config.js`).
 
 ## Regras de negócio implementadas
 
@@ -167,17 +176,18 @@ repetido — e `config` (linha única com `pix_key`).
 - Nome, WhatsApp (validado como celular com DDD, 11 dígitos), pelo menos um
   prato e forma de pagamento são obrigatórios; suco e sobremesa são
   opcionais. Prato, suco e sobremesa aceitam seleção múltipla e quantidade
-  por item (o mesmo item pode ser pedido mais de uma vez, por exemplo).
+  por item (o mesmo item pode ser pedido mais de uma vez), até 9 unidades
+  por item.
 - Depois de confirmado, o resumo do pedido continua visível (com fonte mais
   clara) até o cliente montar um novo pedido — só nome e WhatsApp são
   limpos, para evitar reenvio sem querer.
 - Sem controle de estoque e sem limite de pedidos por cliente/janela.
-- Pix mostra a chave cadastrada em `/admin/`; Cartão mostra aviso de que o
+- Pix mostra a chave fixa em `js/config.js`; Cartão mostra aviso de que o
   pagamento é combinado na entrega/retirada — nenhum dos dois integra gateway
   de pagamento.
 - O admin não tem login: qualquer pessoa com o link `/admin/` consegue
-  cadastrar produtos, janelas, a chave Pix e ver o consolidado. Isso é
-  intencional para este piloto (ver escopo abaixo).
+  cadastrar produtos, janelas e ver o consolidado. Isso é intencional para
+  este piloto (ver escopo abaixo).
 - O CSV exportado no consolidado usa `;` como separador (compatível com Excel
   em pt-BR) e é filtrado pela janela de horário selecionada.
 - Ao enviar o pedido, o site tenta mandar uma confirmação por WhatsApp (ver

@@ -307,26 +307,6 @@ formJanela.addEventListener("submit", async (e) => {
 });
 
 // =========================================================
-// Chave Pix (config)
-// =========================================================
-const formPix = document.getElementById("form-pix");
-const pixKeyInput = document.getElementById("pix-key");
-const pixMsg = document.getElementById("pix-msg");
-
-async function loadPix() {
-  const { data, error } = await supabase.from("config").select("pix_key").eq("id", 1).maybeSingle();
-  if (error) { console.error(error); return; }
-  pixKeyInput.value = data?.pix_key || "";
-}
-
-formPix.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const { error } = await supabase.from("config").update({ pix_key: pixKeyInput.value.trim() }).eq("id", 1);
-  pixMsg.textContent = error ? "Erro ao salvar a chave Pix." : "Chave Pix salva com sucesso.";
-  pixMsg.className = `form-msg ${error ? "form-msg--error" : "form-msg--success"}`;
-});
-
-// =========================================================
 // Pedido consolidado
 // =========================================================
 const consolidadoJanelaSelect = document.getElementById("consolidado-janela");
@@ -530,7 +510,6 @@ function init() {
   loadPratos();
   loadExtras();
   loadJanelas();
-  loadPix();
   loadConsolidadoWindows();
 }
 

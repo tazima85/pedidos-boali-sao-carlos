@@ -1,4 +1,7 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient.js";
+import { PIX_KEY } from "./config.js";
+
+const MAX_QTY = 9;
 
 // ---------- Logo fallback ----------
 // type="module" scripts run after the <img> has already attempted to load,
@@ -29,7 +32,6 @@ const state = {
   selectedSucos: new Map(),
   selectedSobremesas: new Map(),
   paymentMethod: null,
-  pixKey: "",
   activeWindow: null,
   // true logo após um pedido ser confirmado, até o cliente mexer em algo de
   // novo — usado só para deixar o resumo com fonte mais clara nesse meio-tempo.
@@ -135,11 +137,10 @@ function renderBanner() {
 
 // ---------- Data loading ----------
 async function loadData() {
-  const [productsRes, extrasRes, windowsRes, configRes] = await Promise.all([
+  const [productsRes, extrasRes, windowsRes] = await Promise.all([
     supabase.from("products").select("*").eq("ativo", true).order("nome"),
     supabase.from("extra_items").select("*").eq("ativo", true).order("nome"),
     supabase.from("time_windows").select("*").eq("ativa", true),
-    supabase.from("config").select("pix_key").eq("id", 1).maybeSingle(),
   ]);
 
   if (productsRes.error || extrasRes.error || windowsRes.error) {
@@ -153,7 +154,6 @@ async function loadData() {
   state.sucos = (extrasRes.data || []).filter((i) => i.categoria === "suco");
   state.sobremesas = (extrasRes.data || []).filter((i) => i.categoria === "sobremesa");
   state.timeWindows = windowsRes.data || [];
-  state.pixKey = configRes.data?.pix_key || "";
 
   renderPickList(state.selectedProducts, state.products, els.productsGrid, "Nenhum prato disponível no momento.");
   renderPickList(state.selectedSucos, state.sucos, els.sucosGrid, "Nenhuma opção disponível.");
@@ -183,11 +183,12 @@ function renderPickList(selectedMap, items, container, emptyMessage) {
       <div class="qty-control">
         <button type="button" class="qty-btn" data-action="dec" aria-label="Diminuir quantidade de ${escapeHtml(item.nome)}">−</button>
         <span class="qty-value">${qty}</span>
-        <button type="button" class="qty-btn" data-action="inc" aria-label="Aumentar quantidade de ${escapeHtml(item.nome)}">+</button>
+        <button type="button" class="qty-btn" data-action="inc" aria-label="Aumentar quantidade de ${escapeHtml(item.nome)}" ${qty >= MAX_QTY ? "disabled" : ""}>+</button>
       </div>
     `;
     card.querySelector('[data-action="inc"]').addEventListener("click", () => {
       const current = selectedMap.get(item.id)?.qty || 0;
+      if (current >= MAX_QTY) return;
       selectedMap.set(item.id, { item, qty: current + 1 });
       state.orderConfirmed = false;
       renderPickList(selectedMap, items, container, emptyMessage);
@@ -222,9 +223,9 @@ document.querySelectorAll(".payment-option").forEach((btn) => {
 
     if (state.paymentMethod === "pix") {
       els.paymentDetail.style.display = "block";
-      els.paymentDetail.innerHTML = state.pixKey
-        ? `Após confirmar seu pedido faça o pix e guarde o comprovante. Chave pix <code>${escapeHtml(state.pixKey)}</code>`
-        : "Chave Pix ainda não configurada pelo admin.";
+      els.paymentDetail.innerHTML = PIX_KEY
+        ? `Após confirmar seu pedido faça o pix e guarde o comprovante. Chave pix <code>${escapeHtml(PIX_KEY)}</code>`
+        : "Chave Pix ainda não configurada.";
     } else {
       els.paymentDetail.style.display = "block";
       els.paymentDetail.textContent = "O pagamento será realizado na retirada.";

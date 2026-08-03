@@ -213,6 +213,16 @@ a { color: var(--color-primary-dark); }
   background: var(--color-cream);
 }
 
+.qty-btn:disabled {
+  border-color: var(--color-border);
+  color: #b3a692;
+  cursor: not-allowed;
+}
+
+.qty-btn:disabled:hover {
+  background: #fff;
+}
+
 .qty-value {
   min-width: 1.2rem;
   text-align: center;
